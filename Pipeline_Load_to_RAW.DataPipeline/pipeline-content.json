@@ -1,0 +1,208 @@
+{
+  "properties": {
+    "activities": [
+      {
+        "name": "Lookup metadata",
+        "type": "Lookup",
+        "dependsOn": [],
+        "policy": {
+          "timeout": "0.12:00:00",
+          "retry": 0,
+          "retryIntervalInSeconds": 30,
+          "secureOutput": false,
+          "secureInput": false
+        },
+        "typeProperties": {
+          "source": {
+            "type": "JsonSource",
+            "storeSettings": {
+              "type": "AzureBlobFSReadSettings",
+              "recursive": true,
+              "enablePartitionDiscovery": false
+            },
+            "formatSettings": {
+              "type": "JsonReadSettings"
+            }
+          },
+          "firstRowOnly": false,
+          "datasetSettings": {
+            "annotations": [],
+            "type": "Json",
+            "typeProperties": {
+              "location": {
+                "type": "AzureBlobFSLocation",
+                "fileName": "rest_sources.json",
+                "fileSystem": "metadata"
+              }
+            },
+            "schema": {},
+            "externalReferences": {
+              "connection": "fef5ccca-1aa3-4976-ab65-74e25d79e778"
+            }
+          }
+        }
+      },
+      {
+        "name": "ForEach endpoint",
+        "type": "ForEach",
+        "dependsOn": [
+          {
+            "activity": "Lookup metadata",
+            "dependencyConditions": [
+              "Succeeded"
+            ]
+          }
+        ],
+        "typeProperties": {
+          "items": {
+            "value": "@activity('Lookup metadata').output.value",
+            "type": "Expression"
+          },
+          "isSequential": true,
+          "activities": [
+            {
+              "name": "Copy REST data",
+              "type": "Copy",
+              "dependsOn": [],
+              "policy": {
+                "timeout": "0.12:00:00",
+                "retry": 0,
+                "retryIntervalInSeconds": 30,
+                "secureOutput": false,
+                "secureInput": false
+              },
+              "typeProperties": {
+                "source": {
+                  "type": "RestSource",
+                  "httpRequestTimeout": "00:01:40",
+                  "requestInterval": "00.00:00:00.010",
+                  "requestMethod": "GET",
+                  "datasetSettings": {
+                    "annotations": [],
+                    "type": "RestResource",
+                    "typeProperties": {
+                      "relativeUrl": {
+                        "value": "@item().relativeUrl",
+                        "type": "Expression"
+                      }
+                    },
+                    "schema": [],
+                    "externalReferences": {
+                      "connection": "ccc5da59-a98b-45d2-94a0-7e5d550bc098"
+                    }
+                  }
+                },
+                "sink": {
+                  "type": "ParquetSink",
+                  "storeSettings": {
+                    "type": "AzureBlobFSWriteSettings"
+                  },
+                  "formatSettings": {
+                    "type": "ParquetWriteSettings",
+                    "enableVertiParquet": true
+                  },
+                  "datasetSettings": {
+                    "annotations": [],
+                    "type": "Parquet",
+                    "typeProperties": {
+                      "location": {
+                        "type": "AzureBlobFSLocation",
+                        "folderPath": {
+                          "value": "@item().pathPrefix",
+                          "type": "Expression"
+                        },
+                        "fileSystem": "raw"
+                      },
+                      "compressionCodec": "snappy"
+                    },
+                    "schema": [
+                      {
+                        "name": "customer_id",
+                        "type": "INT_64"
+                      },
+                      {
+                        "name": "first_name",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "last_name",
+                        "type": "STRING"
+                      },
+                      {
+                        "name": "happiness",
+                        "type": "INT_64"
+                      }
+                    ],
+                    "externalReferences": {
+                      "connection": "fef5ccca-1aa3-4976-ab65-74e25d79e778"
+                    }
+                  }
+                },
+                "enableStaging": false,
+                "translator": {
+                  "type": "TabularTranslator",
+                  "mappings": [
+                    {
+                      "source": {
+                        "name": "customer_id",
+                        "type": "Int64"
+                      },
+                      "sink": {
+                        "name": "customer_id",
+                        "type": "Int64",
+                        "physicalType": "INT_64"
+                      }
+                    },
+                    {
+                      "source": {
+                        "name": "first_name",
+                        "type": "String"
+                      },
+                      "sink": {
+                        "name": "first_name",
+                        "type": "String",
+                        "physicalType": "STRING"
+                      }
+                    },
+                    {
+                      "source": {
+                        "name": "last_name",
+                        "type": "String"
+                      },
+                      "sink": {
+                        "name": "last_name",
+                        "type": "String",
+                        "physicalType": "STRING"
+                      }
+                    },
+                    {
+                      "source": {
+                        "name": "happiness",
+                        "type": "Int64"
+                      },
+                      "sink": {
+                        "name": "happiness",
+                        "type": "Int64",
+                        "physicalType": "INT_64"
+                      }
+                    }
+                  ],
+                  "typeConversion": true,
+                  "typeConversionSettings": {
+                    "allowDataTruncation": true,
+                    "treatBooleanAsNumber": false
+                  },
+                  "columnFlattenSettings": {
+                    "treatArrayAsString": false,
+                    "treatStructAsString": false,
+                    "flattenColumnDelimiter": "."
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
